@@ -49,19 +49,27 @@
 }
 
 .forest-label {
+  /* Stacks `\\`-separated label lines vertically, centered. */
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.05em;
+  flex-direction: column;
+  align-items: center;
   /* Per-tree label font size injected via custom property. */
   font-size: var(--forest-label-font-size, inherit);
 }
 
-/* MathJax emits its output inside <mjx-container> custom elements that ship
-   with their own low-specificity element-level rules (and inline display
-   styling). We override those by scoping under the .forest-svg root and the
-   .forest-label wrapper, which raises specificity enough to win without
-   needing !important. */
-.forest-svg .forest-label mjx-container {
+.forest-label-line {
+  /* One line of a label: text and inline math sit on a shared baseline. */
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.05em;
+  white-space: nowrap;
+}
+
+/* MathJax emits its output inside a container element carrying the
+   `MathJax` class, with its own low-specificity default rules. Targeting
+   the class (rather than the <mjx-container> custom-element name) keeps
+   linters happy and still wins on specificity without !important. */
+.forest-svg .forest-label .MathJax {
   display: inline-block;
   margin: 0;
   vertical-align: baseline;

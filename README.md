@@ -7,7 +7,7 @@ superscripts (`X$^0$`), subscripts and arbitrary inline math just work.
 The plugin focuses on the subset of `forest` that linguists actually use for
 syntactic trees: bracket syntax, per-node options, the `for tree` propagator,
 edge labels, triangle (roof) phrases, and `\draw`-style movement arrows
-between named nodes — with TikZ-faithful `to[…]` semantics.
+between named nodes.
 
 ---
 

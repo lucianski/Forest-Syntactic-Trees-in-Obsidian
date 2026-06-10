@@ -297,4 +297,4 @@ confirm the bundle on disk is the one Obsidian actually loaded.
 
 ## License
 
-MIT.
+GNU AGPL 3.0.

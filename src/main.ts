@@ -30,7 +30,7 @@ import {
 /** Build identifier — also written into every rendered SVG as
  *  `data-forest-version`, so you can verify in dev-tools that the bundle
  *  Obsidian is actually running is the one you think it is. */
-const FOREST_VERSION = "1.2.6";
+const FOREST_VERSION = "1.2.8";
 
 /* ===================================================================== *
  *  Settings                                                              *
@@ -436,7 +436,8 @@ function resolveInheritance(node: FNode, inherited: Record<string, string | true
  * ===================================================================== */
 
 /** Renders a node label to an HTMLElement and measures it. Mixes plain text
- *  with `$...$` math segments rendered via Obsidian's renderMath().          */
+ *  with `$...$` math segments rendered via Obsidian's renderMath(). LaTeX
+ *  `\\` line breaks (outside math) split the label into stacked lines.       */
 async function renderLabel(
   raw: string,
   fontSize: number,
@@ -445,43 +446,75 @@ async function renderLabel(
   wrap.className = "forest-label";
   wrap.setCssProps({ "--forest-label-font-size": `${fontSize}px` });
 
-  // split on $...$ pairs, including $$...$$
-  const segments: { text: string; math: boolean; display: boolean }[] = [];
-  let i = 0;
-  while (i < raw.length) {
-    if (raw.startsWith("$$", i)) {
-      const end = raw.indexOf("$$", i + 2);
-      if (end === -1) {
-        segments.push({ text: raw.slice(i), math: false, display: false });
-        break;
+  // Split the raw label into lines on `\\`, but only OUTSIDE `$…$` math —
+  // inside math, `\\` is MathJax's own row separator (matrices, arrays)
+  // and must be passed through untouched.
+  const lines: string[] = [];
+  {
+    let cur = "";
+    let inMath = false;
+    let k = 0;
+    while (k < raw.length) {
+      const ch = raw[k];
+      if (ch === "$") {
+        inMath = !inMath;
+        cur += ch;
+        k++;
+        continue;
       }
-      segments.push({ text: raw.slice(i + 2, end), math: true, display: true });
-      i = end + 2;
-    } else if (raw[i] === "$") {
-      const end = raw.indexOf("$", i + 1);
-      if (end === -1) {
-        segments.push({ text: raw.slice(i), math: false, display: false });
-        break;
+      if (!inMath && ch === "\\" && raw[k + 1] === "\\") {
+        lines.push(cur);
+        cur = "";
+        k += 2;
+        continue;
       }
-      segments.push({ text: raw.slice(i + 1, end), math: true, display: false });
-      i = end + 1;
-    } else {
-      let j = i;
-      while (j < raw.length && raw[j] !== "$") j++;
-      segments.push({ text: raw.slice(i, j), math: false, display: false });
-      i = j;
+      cur += ch;
+      k++;
     }
+    lines.push(cur);
   }
 
-  for (const seg of segments) {
-    if (seg.math) {
-      const node = renderMath(seg.text, seg.display);
-      wrap.appendChild(node);
-    } else {
-      // unescape forest's brace-protection
-      const text = seg.text.replace(/\\\\/g, "\\");
-      wrap.appendChild(activeDocument.createTextNode(text));
+  for (const line of lines) {
+    const lineEl = activeDocument.createElement("span");
+    lineEl.className = "forest-label-line";
+
+    // split this line on $...$ pairs, including $$...$$
+    const segments: { text: string; math: boolean; display: boolean }[] = [];
+    let i = 0;
+    while (i < line.length) {
+      if (line.startsWith("$$", i)) {
+        const end = line.indexOf("$$", i + 2);
+        if (end === -1) {
+          segments.push({ text: line.slice(i), math: false, display: false });
+          break;
+        }
+        segments.push({ text: line.slice(i + 2, end), math: true, display: true });
+        i = end + 2;
+      } else if (line[i] === "$") {
+        const end = line.indexOf("$", i + 1);
+        if (end === -1) {
+          segments.push({ text: line.slice(i), math: false, display: false });
+          break;
+        }
+        segments.push({ text: line.slice(i + 1, end), math: true, display: false });
+        i = end + 1;
+      } else {
+        let j = i;
+        while (j < line.length && line[j] !== "$") j++;
+        segments.push({ text: line.slice(i, j), math: false, display: false });
+        i = j;
+      }
     }
+
+    for (const seg of segments) {
+      if (seg.math) {
+        const node = renderMath(seg.text, seg.display);
+        lineEl.appendChild(node);
+      } else {
+        lineEl.appendChild(activeDocument.createTextNode(seg.text));
+      }
+    }
+    wrap.appendChild(lineEl);
   }
 
   // attach off-screen to measure
@@ -1546,7 +1579,13 @@ class ForestRenderChild extends MarkdownRenderChild {
     super(containerEl);
   }
 
-  async onload() {
+  onload(): void {
+    // `onload` is declared void on MarkdownRenderChild, so the async work is
+    // delegated and explicitly fire-and-forgotten with `void`.
+    void this.render();
+  }
+
+  private async render(): Promise<void> {
     const tree = await buildTree(this.source, this.settings);
     this.containerEl.empty();
     this.containerEl.appendChild(tree);
@@ -1575,7 +1614,8 @@ export default class ForestPlugin extends Plugin {
   onunload() {}
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const data = (await this.loadData()) as Partial<ForestSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
   }
 
   async saveSettings() {
@@ -1612,7 +1652,6 @@ class ForestSettingTab extends PluginSettingTab {
           s
             .setLimits(min, max, step)
             .setValue(this.plugin.settings[key] as number)
-            .setDynamicTooltip()
             .onChange(async (v) => {
               (this.plugin.settings[key] as number) = v;
               await this.plugin.saveSettings();

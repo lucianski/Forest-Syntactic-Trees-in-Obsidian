@@ -1,0 +1,112 @@
+/* Obsidian Forest — TikZ/CM-style aesthetics for syntactic trees */
+
+.forest-container,
+.forest-container-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 1em 0 1.4em 0;
+  overflow-x: auto;
+  color: var(--text-normal, #222);
+}
+
+.forest-svg {
+  display: block;
+  color: var(--text-normal, #222);
+  /* Same serif stack TikzJax injects (CMU Serif) + KaTeX/MathJax fonts +
+     standard fallbacks. Labels then visually match the math rendered
+     inside them. */
+  font-family:
+    "KaTeX_Main",
+    "Latin Modern Roman",
+    "CMU Serif",
+    "Computer Modern",
+    "Cambria",
+    "Charter",
+    "Georgia",
+    "Times New Roman",
+    serif;
+  font-feature-settings: "lnum" 1;
+}
+
+.forest-label-wrap {
+  font-family: inherit;
+  color: inherit;
+  text-align: center;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.forest-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.05em;
+}
+
+.forest-label mjx-container {
+  display: inline-block !important;
+  margin: 0 !important;
+  vertical-align: baseline !important;
+}
+
+/* ----- tree edges & roofs ----- */
+.forest-edges,
+.forest-arrows {
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.forest-edge,
+.forest-roof {
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ----- movement arrows ----- */
+.forest-movement {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.forest-arrowhead {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* ----- labels on edges / arrows ----- */
+.forest-edge-label,
+.forest-movement-label {
+  font-size: 0.78em;
+  font-style: italic;
+  fill: var(--text-muted, #666);
+  font-family: inherit;
+}
+
+.forest-node-shape {
+  vector-effect: non-scaling-stroke;
+  stroke: currentColor;
+  fill: var(--background-primary, #fff);
+}
+
+.forest-error {
+  color: var(--text-error, #c00);
+  font-family: var(--font-monospace, monospace);
+  background: var(--background-secondary, #f5f5f5);
+  border-left: 3px solid var(--text-error, #c00);
+  padding: 0.4em 0.8em;
+  margin: 0.6em 0;
+  white-space: pre-wrap;
+}
+
+/* Dark-mode polish: slightly desaturate the strokes so they don't glare.
+   `currentColor` already inherits theme text, so this is just a nudge. */
+.theme-dark .forest-svg {
+  color: var(--text-normal, #ddd);
+}

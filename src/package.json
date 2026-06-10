@@ -1,0 +1,29 @@
+{
+  "name": "obsidian-forest",
+  "version": "1.0.0",
+  "description": "Forest-style syntactic trees for Obsidian",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian",
+    "linguistics",
+    "forest",
+    "syntactic-trees",
+    "mathjax"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.20.0",
+    "obsidian": "latest",
+    "tslib": "^2.6.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "jsdom": "^29.1.1"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "obsidian-forest",
+  "name": "Forest Syntactic Trees",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "Renders LaTeX forest-style syntactic trees for linguistics inline.",
+  "author": "Lucianski",
+  "authorUrl": "",
+  "isDesktopOnly": false
+}

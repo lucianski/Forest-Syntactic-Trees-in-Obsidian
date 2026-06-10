@@ -1,4 +1,4 @@
-# Syntactic Trees in Forest
+# Forest Syntactic Trees for Obsidian
 
 Render LaTeX **`forest`**-style syntactic trees inline in Obsidian notes.
 Node labels go through Obsidian's MathJax pipeline, so primes (`X$'$`),
@@ -7,7 +7,7 @@ superscripts (`X$^0$`), subscripts and arbitrary inline math just work.
 The plugin focuses on the subset of `forest` that linguists actually use for
 syntactic trees: bracket syntax, per-node options, the `for tree` propagator,
 edge labels, triangle (roof) phrases, and `\draw`-style movement arrows
-between named nodes.
+between named nodes — with TikZ-faithful `to[…]` semantics.
 
 ---
 
@@ -33,6 +33,10 @@ Trees live in fenced **`forest`** code blocks:
 The plugin processes the source as `forest`-package syntax and emits an
 inline SVG. Labels are MathJax-rendered, so anything between `$…$` typesets
 properly.
+
+> ` ```forest ` is the sole entry point — `$$\begin{forest}…\end{forest}$$`
+> is **not** supported because MathJax doesn't know the `forest` environment
+> and would raise an error before the plugin could intervene.
 
 ---
 
@@ -77,6 +81,20 @@ Apply options to a node *and* all its descendants:
 ```
 
 `for descendants={...}` does the same but excludes the node itself.
+
+### Line breaks in labels
+
+LaTeX-style `\\` inside a node label breaks it into stacked, centered lines:
+
+```
+[NP [Tall] [N\\cat]]
+```
+
+renders the second child as "N" over "cat". `\\` inside `$…$` math is left
+alone — there it's MathJax's own row separator (matrices, `\begin{array}`,
+etc.), so things like `$\begin{matrix}a\\b\end{matrix}$` still typeset
+correctly. Node width/height and edge anchors adapt to the stacked size
+automatically.
 
 ### Math in labels
 
@@ -297,4 +315,4 @@ confirm the bundle on disk is the one Obsidian actually loaded.
 
 ## License
 
-GNU AGPL 3.0.
+MIT.

@@ -30,7 +30,7 @@ import {
 /** Build identifier — also written into every rendered SVG as
  *  `data-forest-version`, so you can verify in dev-tools that the bundle
  *  Obsidian is actually running is the one you think it is. */
-const FOREST_VERSION = "1.2.5";
+const FOREST_VERSION = "1.2.6";
 
 /* ===================================================================== *
  *  Settings                                                              *

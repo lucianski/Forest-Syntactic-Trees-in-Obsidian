@@ -30,7 +30,7 @@ import {
 /** Build identifier — also written into every rendered SVG as
  *  `data-forest-version`, so you can verify in dev-tools that the bundle
  *  Obsidian is actually running is the one you think it is. */
-const FOREST_VERSION = "1.2.3";
+const FOREST_VERSION = "1.2.5";
 
 /* ===================================================================== *
  *  Settings                                                              *
@@ -845,13 +845,16 @@ class Renderer {
       // (filled to mask the label backdrop), and the circle/ellipse on top
       // with no fill so the rect's interior stays visible. This matches
       // users' expectation that the two options stack rather than override.
+      //
+      // Fill is controlled through CSS classes, NOT the `fill` presentation
+      // attribute: a stylesheet rule (`.forest-node-shape { fill: … }`) always
+      // beats a presentation attribute, so setting `fill="none"` inline would
+      // be silently overridden — that was why circle+draw didn't compose.
       const wantsCircle = !!n.options["circle"];
       const wantsRect = this.settings.drawNodes || !!n.options["draw"];
       if (wantsRect) {
         const rect = this.makeRect(x - w / 2, y - h / 2, w, h, 4);
         rect.setAttribute("class", "forest-node-shape forest-node-rect");
-        rect.setAttribute("fill", "var(--background-primary, white)");
-        rect.setAttribute("stroke", "currentColor");
         labelGroup.appendChild(rect);
       }
       if (wantsCircle) {
@@ -862,13 +865,14 @@ class Renderer {
           Math.abs(padW - padH) < 2
             ? this.makeCircle(x, y, Math.max(padW, padH))
             : this.makeEllipse(x, y, padW, padH);
-        shape.setAttribute("class", "forest-node-shape forest-node-circle");
-        // No fill if a rect already provides the backdrop, otherwise white.
+        // When a rect already provides the filled backdrop, the circle must be
+        // transparent so the rect's interior (and the label) stays visible;
+        // the `forest-node-circle--overlay` modifier selects the no-fill rule.
+        const overlay = wantsRect ? " forest-node-circle--overlay" : "";
         shape.setAttribute(
-          "fill",
-          wantsRect ? "none" : "var(--background-primary, white)",
+          "class",
+          "forest-node-shape forest-node-circle" + overlay,
         );
-        shape.setAttribute("stroke", "currentColor");
         labelGroup.appendChild(shape);
       }
       const fo = activeDocument.createElementNS(ns, "foreignObject");
@@ -1493,7 +1497,8 @@ async function buildTree(source: string, settings: ForestSettings): Promise<HTML
   } catch (err) {
     const div = activeDocument.createElement("div");
     div.addClass("forest-error");
-    div.setText("Forest parse error: " + (err as Error).message);
+    const message = err instanceof Error ? err.message : String(err);
+    div.setText("Forest parse error: " + message);
     return div;
   }
 
@@ -1590,7 +1595,7 @@ class ForestSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    new Setting(containerEl).setName("Forest tree settings").setHeading();
+    new Setting(containerEl).setName("Tree appearance").setHeading();
 
     const num = (
       name: string,

@@ -12,6 +12,12 @@
 .forest-svg {
   display: block;
   color: var(--text-normal, #222);
+  /* Natural-size rendering: width/height attributes set the intrinsic size;
+     these let it shrink in a narrow container without being scaled up. */
+  max-width: 100%;
+  height: auto;
+  /* Per-tree font size injected via the --forest-svg-font-size custom prop. */
+  font-size: var(--forest-svg-font-size, inherit);
   /* Same serif stack TikzJax injects (CMU Serif) + KaTeX/MathJax fonts +
      standard fallbacks. Labels then visually match the math rendered
      inside them. */
@@ -34,18 +40,31 @@
   text-align: center;
   white-space: nowrap;
   line-height: 1.1;
+  /* Per-node dimensions injected via custom properties from the renderer. */
+  width: var(--forest-label-width, auto);
+  height: var(--forest-label-height, auto);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .forest-label {
   display: inline-flex;
   align-items: baseline;
   gap: 0.05em;
+  /* Per-tree label font size injected via custom property. */
+  font-size: var(--forest-label-font-size, inherit);
 }
 
-.forest-label mjx-container {
-  display: inline-block !important;
-  margin: 0 !important;
-  vertical-align: baseline !important;
+/* MathJax emits its output inside <mjx-container> custom elements that ship
+   with their own low-specificity element-level rules (and inline display
+   styling). We override those by scoping under the .forest-svg root and the
+   .forest-label wrapper, which raises specificity enough to win without
+   needing !important. */
+.forest-svg .forest-label mjx-container {
+  display: inline-block;
+  margin: 0;
+  vertical-align: baseline;
 }
 
 /* ----- tree edges & roofs ----- */
@@ -95,6 +114,14 @@
   fill: var(--background-primary, #fff);
 }
 
+/* When a circle/ellipse is layered on top of a drawn rect, it must be
+   transparent so the rect's filled interior and the label show through.
+   This is a separate, more specific rule so it reliably overrides the
+   default filled `.forest-node-shape` backdrop. */
+.forest-node-shape.forest-node-circle--overlay {
+  fill: none;
+}
+
 .forest-error {
   color: var(--text-error, #c00);
   font-family: var(--font-monospace, monospace);
@@ -109,4 +136,14 @@
    `currentColor` already inherits theme text, so this is just a nudge. */
 .theme-dark .forest-svg {
   color: var(--text-normal, #ddd);
+}
+
+/* Off-screen container used only to measure rendered label sizes before
+   layout. Kept out of flow and invisible; never shown to the user. */
+.forest-measure-box {
+  position: absolute;
+  visibility: hidden;
+  left: -9999px;
+  top: 0;
+  white-space: nowrap;
 }

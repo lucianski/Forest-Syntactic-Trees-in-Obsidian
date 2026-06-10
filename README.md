@@ -1,4 +1,4 @@
-# Forest Syntactic Trees for Obsidian
+# Syntactic Trees in Forest
 
 Render LaTeX **`forest`**-style syntactic trees inline in Obsidian notes.
 Node labels go through Obsidian's MathJax pipeline, so primes (`X$'$`),

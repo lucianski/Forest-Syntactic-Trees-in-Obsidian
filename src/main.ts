@@ -30,7 +30,7 @@ import {
 /** Build identifier — also written into every rendered SVG as
  *  `data-forest-version`, so you can verify in dev-tools that the bundle
  *  Obsidian is actually running is the one you think it is. */
-const FOREST_VERSION = "1.2.2";
+const FOREST_VERSION = "1.2.3";
 
 /* ===================================================================== *
  *  Settings                                                              *
@@ -145,7 +145,7 @@ class ForestParser {
   private parseNode(): FNode {
     this.expect("[");
     // content: text up to ',' (options), '[' (children), or ']' (close)
-    const content = this.readBalanced(/[,\[\]]/).trim();
+    const content = this.readBalanced(/[,[\]]/).trim();
     const options: Record<string, string | true> = {};
 
     // options block
@@ -173,7 +173,7 @@ class ForestParser {
       const c = this.peek();
       if (c === "[" || c === "]" || c === "") return;
       // read key
-      const key = this.readBalanced(/[,=\[\]]/).trim();
+      const key = this.readBalanced(/[,=[\]]/).trim();
       let value: string | true = true;
       this.skipWS();
       if (this.peek() === "=") {
@@ -197,7 +197,7 @@ class ForestParser {
     if (this.peek() === "{") {
       return this.readBraceGroup();
     }
-    return this.readBalanced(/[,\[\]]/).trim();
+    return this.readBalanced(/[,[\]]/).trim();
   }
 
   /** Reads `{...}` returning the *inside* of the braces. */
@@ -397,7 +397,7 @@ function resolveInheritance(node: FNode, inherited: Record<string, string | true
   let childInherit: Record<string, string | true> = { ...inherited };
   if (typeof node.options["for tree"] === "string") {
     const sub: Record<string, string | true> = {};
-    const inner = node.options["for tree"] as string;
+    const inner = node.options["for tree"];
     // re-parse the inner option list
     const parser = new ForestParser("[," + inner + "]");
     try {
@@ -441,9 +441,9 @@ async function renderLabel(
   raw: string,
   fontSize: number,
 ): Promise<{ el: HTMLElement; w: number; h: number }> {
-  const wrap = document.createElement("span");
+  const wrap = activeDocument.createElement("span");
   wrap.className = "forest-label";
-  wrap.style.fontSize = `${fontSize}px`;
+  wrap.setCssProps({ "--forest-label-font-size": `${fontSize}px` });
 
   // split on $...$ pairs, including $$...$$
   const segments: { text: string; math: boolean; display: boolean }[] = [];
@@ -480,25 +480,21 @@ async function renderLabel(
     } else {
       // unescape forest's brace-protection
       const text = seg.text.replace(/\\\\/g, "\\");
-      wrap.appendChild(document.createTextNode(text));
+      wrap.appendChild(activeDocument.createTextNode(text));
     }
   }
 
   // attach off-screen to measure
-  const measureBox = document.createElement("div");
-  measureBox.style.position = "absolute";
-  measureBox.style.visibility = "hidden";
-  measureBox.style.left = "-9999px";
-  measureBox.style.top = "0";
-  measureBox.style.whiteSpace = "nowrap";
+  const measureBox = activeDocument.createElement("div");
+  measureBox.classList.add("forest-measure-box");
   measureBox.appendChild(wrap);
-  document.body.appendChild(measureBox);
+  activeDocument.body.appendChild(measureBox);
   await finishRenderMath();
 
   const rect = wrap.getBoundingClientRect();
   const w = Math.max(8, Math.ceil(rect.width));
   const h = Math.max(fontSize, Math.ceil(rect.height));
-  document.body.removeChild(measureBox);
+  activeDocument.body.removeChild(measureBox);
 
   return { el: wrap, w, h };
 }
@@ -669,7 +665,7 @@ class Layout {
 class Renderer {
   constructor(private settings: ForestSettings) {}
 
-  render(ast: ForestAST, labels: Map<FNode, HTMLElement>): SVGSVGElement {
+  render(ast: ForestAST, labels: Map<FNode, HTMLElement>): SVGElement {
     const all: FNode[] = [];
     this.collect(ast.root, all);
 
@@ -752,7 +748,7 @@ class Renderer {
     maxY += pad;
 
     const ns = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(ns, "svg") as SVGSVGElement;
+    const svg = activeDocument.createElementNS(ns, "svg");
     svg.setAttribute("xmlns", ns);
     const vbW = maxX - minX;
     const vbH = maxY - minY;
@@ -760,20 +756,17 @@ class Renderer {
     // Explicit pixel dimensions equal to the viewBox so the SVG renders at
     // its NATURAL size (1 user unit = 1 px). Without these the SVG defaults
     // to 100% of its container width and the whole tree gets scaled up.
-    // maxWidth:100% still lets us shrink if the container is too narrow.
+    // maxWidth:100% (in CSS) still lets us shrink if the container is too narrow.
     svg.setAttribute("width", String(vbW));
     svg.setAttribute("height", String(vbH));
     svg.setAttribute("class", "forest-svg");
     svg.setAttribute("data-forest-version", FOREST_VERSION);
-    svg.style.maxWidth = "100%";
-    svg.style.height = "auto";
-    svg.style.fontSize = `${this.settings.fontSize}px`;
-    // anchor for currentColor in all child elements — works whether or not
-    // styles.css loaded, and respects --text-normal when it did.
-    svg.style.color = "var(--text-normal, #222)";
+    // Only the per-tree font size is dynamic; max-width, height:auto and the
+    // currentColor anchor live in styles.css on `.forest-svg`.
+    svg.setCssProps({ "--forest-svg-font-size": `${this.settings.fontSize}px` });
 
     // edges first (so they sit behind labels)
-    const edgeGroup = document.createElementNS(ns, "g");
+    const edgeGroup = activeDocument.createElementNS(ns, "g");
     edgeGroup.setAttribute("class", "forest-edges");
     edgeGroup.setAttribute("stroke", "currentColor");
     edgeGroup.setAttribute("fill", "none");
@@ -800,7 +793,7 @@ class Renderer {
           const baseY = cBox.top - 2;
           const leftX = cx - baseW / 2;
           const rightX = cx + baseW / 2;
-          const path = document.createElementNS(ns, "path");
+          const path = activeDocument.createElementNS(ns, "path");
           path.setAttribute(
             "d",
             `M ${p1.x} ${p1.y} L ${leftX} ${baseY} L ${rightX} ${baseY} Z`,
@@ -812,7 +805,7 @@ class Renderer {
         } else {
           const p1 = this.parentAnchor(n);
           const p2 = this.childAnchor(c);
-          const line = document.createElementNS(ns, "line");
+          const line = activeDocument.createElementNS(ns, "line");
           line.setAttribute("x1", String(p1.x));
           line.setAttribute("y1", String(p1.y));
           line.setAttribute("x2", String(p2.x));
@@ -824,7 +817,7 @@ class Renderer {
           if (typeof elbl === "string") {
             const mx = (p1.x + p2.x) / 2;
             const my = (p1.y + p2.y) / 2;
-            const text = document.createElementNS(ns, "text");
+            const text = activeDocument.createElementNS(ns, "text");
             text.setAttribute("x", String(mx + 4));
             text.setAttribute("y", String(my));
             text.setAttribute("class", "forest-edge-label");
@@ -838,7 +831,7 @@ class Renderer {
     svg.appendChild(edgeGroup);
 
     // labels (foreignObject so MathJax can do its thing inside)
-    const labelGroup = document.createElementNS(ns, "g");
+    const labelGroup = activeDocument.createElementNS(ns, "g");
     labelGroup.setAttribute("class", "forest-labels");
     for (const n of all) {
       if (n.options["phantom"]) continue;
@@ -878,20 +871,18 @@ class Renderer {
         shape.setAttribute("stroke", "currentColor");
         labelGroup.appendChild(shape);
       }
-      const fo = document.createElementNS(ns, "foreignObject");
+      const fo = activeDocument.createElementNS(ns, "foreignObject");
       fo.setAttribute("x", String(x - w / 2));
       fo.setAttribute("y", String(y - h / 2));
       fo.setAttribute("width", String(w));
       fo.setAttribute("height", String(h));
-      const div = document.createElement("div");
+      const div = activeDocument.createElement("div");
       div.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
       div.className = "forest-label-wrap";
-      div.style.width = `${w}px`;
-      div.style.height = `${h}px`;
-      div.style.display = "flex";
-      div.style.alignItems = "center";
-      div.style.justifyContent = "center";
-      div.style.lineHeight = "1.1";
+      div.setCssProps({
+        "--forest-label-width": `${w}px`,
+        "--forest-label-height": `${h}px`,
+      });
       const node = labels.get(n);
       if (node) div.appendChild(node);
       fo.appendChild(div);
@@ -901,7 +892,7 @@ class Renderer {
 
     // movement arrows — drawn geometrically (no SVG markers; those are
     // fragile in embedded-SVG-inside-HTML contexts).
-    const arrowGroup = document.createElementNS(ns, "g");
+    const arrowGroup = activeDocument.createElementNS(ns, "g");
     arrowGroup.setAttribute("class", "forest-arrows");
     arrowGroup.setAttribute("stroke", "currentColor");
     arrowGroup.setAttribute("fill", "none");
@@ -915,7 +906,7 @@ class Renderer {
         if (!from) missing.push(`from='${a.from}'`);
         if (!to) missing.push(`to='${a.to}'`);
         const msg = `⚠ \\draw target not found: ${missing.join(" ")}`;
-        const t = document.createElementNS(ns, "text");
+        const t = activeDocument.createElementNS(ns, "text");
         t.setAttribute("x", String((minX ?? 0) + 6));
         t.setAttribute("y", String(warningY));
         t.setAttribute("fill", "var(--text-error, #c00)");
@@ -924,8 +915,6 @@ class Renderer {
         t.textContent = msg;
         arrowGroup.appendChild(t);
         warningY -= 14;
-        // eslint-disable-next-line no-console
-        console.warn("[forest]", msg);
         continue;
       }
       const geom = this.computeArrowGeometry(a, from, to);
@@ -975,7 +964,7 @@ class Renderer {
         pathD = `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y} ${c2x} ${c2y} ${lineEndX} ${lineEndY}`;
       }
 
-      const path = document.createElementNS(ns, "path");
+      const path = activeDocument.createElementNS(ns, "path");
       path.setAttribute("d", pathD);
       path.setAttribute("class", "forest-movement");
       path.setAttribute("stroke", "currentColor");
@@ -997,7 +986,7 @@ class Renderer {
       const notch = headSize * 0.25;
       const notchX = baseCX + ux * notch;
       const notchY = baseCY + uy * notch;
-      const head = document.createElementNS(ns, "path");
+      const head = activeDocument.createElementNS(ns, "path");
       head.setAttribute(
         "d",
         `M ${tipX} ${tipY} L ${baseLX} ${baseLY} L ${notchX} ${notchY} L ${baseRX} ${baseRY} Z`,
@@ -1022,7 +1011,7 @@ class Renderer {
           lx = (p1.x + p2.x) / 2;
           ly = (p1.y + p2.y) / 2;
         }
-        const t = document.createElementNS(ns, "text");
+        const t = activeDocument.createElementNS(ns, "text");
         t.setAttribute("x", String(lx));
         t.setAttribute("y", String(ly + 12));
         t.setAttribute("text-anchor", "middle");
@@ -1373,7 +1362,7 @@ class Renderer {
 
   private makeRect(x: number, y: number, w: number, h: number, r: number): SVGElement {
     const ns = "http://www.w3.org/2000/svg";
-    const rect = document.createElementNS(ns, "rect");
+    const rect = activeDocument.createElementNS(ns, "rect");
     rect.setAttribute("x", String(x));
     rect.setAttribute("y", String(y));
     rect.setAttribute("width", String(w));
@@ -1384,7 +1373,7 @@ class Renderer {
 
   private makeCircle(cx: number, cy: number, r: number): SVGElement {
     const ns = "http://www.w3.org/2000/svg";
-    const c = document.createElementNS(ns, "circle");
+    const c = activeDocument.createElementNS(ns, "circle");
     c.setAttribute("cx", String(cx));
     c.setAttribute("cy", String(cy));
     c.setAttribute("r", String(r));
@@ -1393,7 +1382,7 @@ class Renderer {
 
   private makeEllipse(cx: number, cy: number, rx: number, ry: number): SVGElement {
     const ns = "http://www.w3.org/2000/svg";
-    const e = document.createElementNS(ns, "ellipse");
+    const e = activeDocument.createElementNS(ns, "ellipse");
     e.setAttribute("cx", String(cx));
     e.setAttribute("cy", String(cy));
     e.setAttribute("rx", String(rx));
@@ -1502,7 +1491,7 @@ async function buildTree(source: string, settings: ForestSettings): Promise<HTML
   try {
     ast = parser.parse();
   } catch (err) {
-    const div = document.createElement("div");
+    const div = activeDocument.createElement("div");
     div.addClass("forest-error");
     div.setText("Forest parse error: " + (err as Error).message);
     return div;
@@ -1533,7 +1522,7 @@ async function buildTree(source: string, settings: ForestSettings): Promise<HTML
   const renderer = new Renderer(effSettings);
   const svg = renderer.render(ast, labels);
 
-  const container = document.createElement("div");
+  const container = activeDocument.createElement("div");
   container.addClass("forest-container");
   container.appendChild(svg);
   return container;
@@ -1567,8 +1556,6 @@ export default class ForestPlugin extends Plugin {
   settings!: ForestSettings;
 
   async onload() {
-    // eslint-disable-next-line no-console
-    console.log(`[forest] plugin loaded — v${FOREST_VERSION}`);
     await this.loadSettings();
 
     // ```forest fenced code blocks are the sole entry point.
@@ -1603,7 +1590,7 @@ class ForestSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Forest tree settings" });
+    new Setting(containerEl).setName("Forest tree settings").setHeading();
 
     const num = (
       name: string,

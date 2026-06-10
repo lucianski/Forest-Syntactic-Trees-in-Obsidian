@@ -34,10 +34,6 @@ The plugin processes the source as `forest`-package syntax and emits an
 inline SVG. Labels are MathJax-rendered, so anything between `$…$` typesets
 properly.
 
-> ` ```forest ` is the sole entry point — `$$\begin{forest}…\end{forest}$$`
-> is **not** supported because MathJax doesn't know the `forest` environment
-> and would raise an error before the plugin could intervene.
-
 ---
 
 ## Bracket syntax

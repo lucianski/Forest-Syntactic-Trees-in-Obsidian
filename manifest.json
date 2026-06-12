@@ -1,7 +1,7 @@
 {
   "id": "forest-syntactic-trees",
   "name": "Syntactic Trees in Forest",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "minAppVersion": "1.0.0",
   "description": "Renders LaTeX forest-style syntactic trees for linguistics inline.",
   "author": "Lucianski",
